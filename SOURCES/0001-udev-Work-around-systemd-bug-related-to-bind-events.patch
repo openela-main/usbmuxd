@@ -1,0 +1,30 @@
+From a4c34c493e5d40395b55871b52b75f33550b9590 Mon Sep 17 00:00:00 2001
+From: Bastien Nocera <hadess@hadess.net>
+Date: Wed, 18 Apr 2018 15:00:25 +0200
+Subject: [PATCH] udev: Work around systemd bug related to bind events
+
+Make sure that udev doesn't lose our properties when bind events come
+in, as implemented in kernels 4.12+.
+
+See https://github.com/systemd/systemd/issues/8221
+and https://github.com/systemd/systemd/issues/7109
+---
+ udev/39-usbmuxd.rules.in | 3 +++
+ 1 file changed, 3 insertions(+)
+
+diff --git a/udev/39-usbmuxd.rules.in b/udev/39-usbmuxd.rules.in
+index 140869e..4e84755 100644
+--- a/udev/39-usbmuxd.rules.in
++++ b/udev/39-usbmuxd.rules.in
+@@ -6,5 +6,8 @@ SUBSYSTEM=="usb", ENV{DEVTYPE}=="usb_device", ENV{PRODUCT}=="5ac/12[9a][0-9a-f]/
+ # Initialize iOS devices into "deactivated" USB configuration state and activate usbmuxd
+ SUBSYSTEM=="usb", ENV{DEVTYPE}=="usb_device", ENV{PRODUCT}=="5ac/12[9a][0-9a-f]/*", ACTION=="add", ENV{USBMUX_SUPPORTED}="1", ATTR{bConfigurationValue}="0", OWNER="usbmux", @udev_activation_rule@
+ 
++# Make sure properties don't get lost when bind action is called
++SUBSYSTEM=="usb", ENV{DEVTYPE}=="usb_device", ENV{PRODUCT}=="5ac/12[9a][0-9a-f]/*", ACTION=="bind", ENV{USBMUX_SUPPORTED}="1", OWNER="usbmux", @udev_activation_rule@
++
+ # Exit usbmuxd when the last device is removed
+ SUBSYSTEM=="usb", ENV{DEVTYPE}=="usb_device", ENV{PRODUCT}=="5ac/12[9a][0-9a-f]/*", ACTION=="remove", RUN+="@sbindir@/usbmuxd -x"
+-- 
+2.17.0
+

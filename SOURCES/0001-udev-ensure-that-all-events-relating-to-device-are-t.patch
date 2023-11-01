@@ -1,0 +1,48 @@
+From 7f54d304149f405dc70ac924471df0d5e3e5ea09 Mon Sep 17 00:00:00 2001
+From: Gavin Li <gavinli@thegavinli.com>
+Date: Sun, 14 Jan 2018 02:10:18 -0800
+Subject: [PATCH 1/2] udev: ensure that all events relating to device are
+ tagged systemd
+
+systemd will not restart the usbmuxd service the after the first time it
+is plugged in if it does not receive the "remove" events, which also
+happen to lack the idVendor and idProduct attributes, so use
+ENV{PRODUCT} instead.
+---
+ configure.ac             | 2 +-
+ udev/39-usbmuxd.rules.in | 7 +++++--
+ 2 files changed, 6 insertions(+), 3 deletions(-)
+
+diff --git a/configure.ac b/configure.ac
+index b836f45..1ce46d8 100644
+--- a/configure.ac
++++ b/configure.ac
+@@ -74,7 +74,7 @@ fi
+ AM_CONDITIONAL(WANT_SYSTEMD, [test -n "$with_systemdsystemunitdir" -a "x$with_systemdsystemunitdir" != xno -a "x$with_systemd" = "xyes" ])
+ 
+ if test "x$with_systemd" = xyes; then
+-  udev_activation_rule="TAG+=\"systemd\", ENV{SYSTEMD_WANTS}=\"usbmuxd.service\""
++  udev_activation_rule="ENV{SYSTEMD_WANTS}=\"usbmuxd.service\""
+ else
+   udev_activation_rule="RUN+=\"@sbindir@/usbmuxd --user usbmux --udev\""
+ fi
+diff --git a/udev/39-usbmuxd.rules.in b/udev/39-usbmuxd.rules.in
+index 91b14db..7d14d22 100644
+--- a/udev/39-usbmuxd.rules.in
++++ b/udev/39-usbmuxd.rules.in
+@@ -1,7 +1,10 @@
+ # usbmuxd (Apple Mobile Device Muxer listening on /var/run/usbmuxd)
+ 
++# systemd should receive all events relating to device
++SUBSYSTEM=="usb", ENV{PRODUCT}=="5ac/12[9a][0-9a-f]/*", TAG+="systemd"
++
+ # Initialize iOS devices into "deactivated" USB configuration state and activate usbmuxd
+-ACTION=="add", SUBSYSTEM=="usb", ATTR{idVendor}=="05ac", ATTR{idProduct}=="12[9a][0-9a-f]", ENV{USBMUX_SUPPORTED}="1", ATTR{bConfigurationValue}="0", OWNER="usbmux", @udev_activation_rule@
++SUBSYSTEM=="usb", ENV{PRODUCT}=="5ac/12[9a][0-9a-f]/*", ACTION=="add", ENV{USBMUX_SUPPORTED}="1", ATTR{bConfigurationValue}="0", OWNER="usbmux", @udev_activation_rule@
+ 
+ # Exit usbmuxd when the last device is removed
+-ACTION=="remove", SUBSYSTEM=="usb", ENV{PRODUCT}=="5ac/12[9a][0-9a-f]/*", ENV{INTERFACE}=="255/*", RUN+="@sbindir@/usbmuxd -x"
++SUBSYSTEM=="usb", ENV{PRODUCT}=="5ac/12[9a][0-9a-f]/*", ACTION=="remove", RUN+="@sbindir@/usbmuxd -x"
+-- 
+2.17.0
+
