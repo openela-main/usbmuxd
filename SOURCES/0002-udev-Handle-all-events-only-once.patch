@@ -1,0 +1,33 @@
+From b888970f68fb16961a7cc3a526065fab7a5d96ca Mon Sep 17 00:00:00 2001
+From: Rudolf Tammekivi <rtammekivi@gmail.com>
+Date: Wed, 31 Jan 2018 01:10:54 +0100
+Subject: [PATCH 2/2] udev: Handle all events only once
+
+This fixes spontaneous USB reconfiguration causing "remove" event to be sent to
+the daemon, which causes it to close itself if it did not have enough time to
+connect to phone.
+---
+ udev/39-usbmuxd.rules.in | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/udev/39-usbmuxd.rules.in b/udev/39-usbmuxd.rules.in
+index 7d14d22..140869e 100644
+--- a/udev/39-usbmuxd.rules.in
++++ b/udev/39-usbmuxd.rules.in
+@@ -1,10 +1,10 @@
+ # usbmuxd (Apple Mobile Device Muxer listening on /var/run/usbmuxd)
+ 
+ # systemd should receive all events relating to device
+-SUBSYSTEM=="usb", ENV{PRODUCT}=="5ac/12[9a][0-9a-f]/*", TAG+="systemd"
++SUBSYSTEM=="usb", ENV{DEVTYPE}=="usb_device", ENV{PRODUCT}=="5ac/12[9a][0-9a-f]/*", TAG+="systemd"
+ 
+ # Initialize iOS devices into "deactivated" USB configuration state and activate usbmuxd
+-SUBSYSTEM=="usb", ENV{PRODUCT}=="5ac/12[9a][0-9a-f]/*", ACTION=="add", ENV{USBMUX_SUPPORTED}="1", ATTR{bConfigurationValue}="0", OWNER="usbmux", @udev_activation_rule@
++SUBSYSTEM=="usb", ENV{DEVTYPE}=="usb_device", ENV{PRODUCT}=="5ac/12[9a][0-9a-f]/*", ACTION=="add", ENV{USBMUX_SUPPORTED}="1", ATTR{bConfigurationValue}="0", OWNER="usbmux", @udev_activation_rule@
+ 
+ # Exit usbmuxd when the last device is removed
+-SUBSYSTEM=="usb", ENV{PRODUCT}=="5ac/12[9a][0-9a-f]/*", ACTION=="remove", RUN+="@sbindir@/usbmuxd -x"
++SUBSYSTEM=="usb", ENV{DEVTYPE}=="usb_device", ENV{PRODUCT}=="5ac/12[9a][0-9a-f]/*", ACTION=="remove", RUN+="@sbindir@/usbmuxd -x"
+-- 
+2.17.0
+
